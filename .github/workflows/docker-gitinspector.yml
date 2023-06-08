@@ -1,0 +1,62 @@
+name: docker-gitinspector
+
+on:
+  workflow_dispatch:
+  create:
+    tags:
+      - "*"
+  push:
+    tags:
+      - "*"
+    branches:
+      - "*"
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - 
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+      - 
+        name: Set git sha short and tag
+        id: short
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      - 
+        name: Set git tag
+        id: tag
+        run: echo "::set-output name=tag::$(git tag -l --points-at HEAD)"
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Build for commit and push
+        uses: docker/build-push-action@v3
+        with:
+          context: ./
+          file: ./docker/Dockerfile
+          platforms: linux/amd64
+          tags: xiaoyao9184/docker-gitinspector:${{ steps.short.outputs.sha_short }},xiaoyao9184/docker-gitinspector:latest
+          push: true
+      -
+        name: Build for tag and push
+        uses: docker/build-push-action@v3
+        if: ${{ steps.tag.outputs.tag }}
+        with:
+          context: ./
+          file: ./Dockerfile
+          platforms: linux/amd64
+          tags: xiaoyao9184/docker-gitinspector:6.2.0-${{ steps.tag.outputs.tag }}
+          push: true
+          
